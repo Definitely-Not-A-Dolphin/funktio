@@ -13,7 +13,6 @@
           cargo
           m4
           rustc
-          rustup
         ];
       };
     };
