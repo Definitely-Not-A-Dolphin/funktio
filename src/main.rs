@@ -1,9 +1,14 @@
-use rug::Complex;
+use image::{Rgb, RgbImage};
 
 fn main() {
-    let z0 = Complex::with_val(24, (0, 1));
+    let name = "static/new_image.png";
+    let _ = std::fs::remove_file(name);
 
-    let square = Complex::square(z0.clone());
-
-    println!("Hello, world!, {}", square);
+    let mut img = RgbImage::new(255, 255);
+    for x in 0..255 {
+        for y in 0..255 {
+            (&mut img).put_pixel(x, y, Rgb([x as u8, y as u8, 100]));
+        }
+    }
+    let _ = img.save(name);
 }
