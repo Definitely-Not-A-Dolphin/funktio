@@ -1,4 +1,4 @@
-use image::{DynamicImage, GenericImageView, ImageBuffer, ImageReader, Rgba, RgbaImage};
+use image::{DynamicImage, GenericImageView, ImageReader, RgbaImage};
 use num_complex::Complex32;
 
 #[derive(Clone, Copy, Debug)]
@@ -12,122 +12,90 @@ impl Coordinate {
         Coordinate { x, y }
     }
 
-    fn to_math(self, (size_x, size_y): (u32, u32)) -> Complex32 {
-        let (size_x, size_y) = (size_x as f32, size_y as f32);
-
-        if size_x < size_y {
-            let a = 2. / size_x * self.x as f32 - 1.;
-            let b = 1. - 2. / size_y * self.y as f32;
-
-            Complex32::new(a, b)
-        } else {
-            let a = 2. / size_x * self.x as f32 - 1.;
-            let b = 1. - 2. / size_y * self.y as f32;
-
-            Complex32::new(b, a)
-        }
+    fn to_math(self, size: u32) -> Complex32 {
+        let size = size as f32;
+        Complex32::new(
+            2. / (size - 1.) * self.x as f32 - 1.,
+            1. - 2. / (size - 1.) * self.y as f32,
+        )
     }
 
-    fn is_out_of_bounds(self, (size_x, size_y): (u32, u32)) -> bool {
-        size_x <= self.x || size_y <= self.y
+    fn is_out_of_bounds(self, size: u32) -> bool {
+        size <= self.x || size <= self.y
     }
 }
 
 trait ToImage {
-    fn to_image(self, size: (u32, u32)) -> Coordinate;
+    fn to_image(self, size: u32) -> Coordinate;
 }
 
 impl ToImage for Complex32 {
-    fn to_image(self, (size_x, size_y): (u32, u32)) -> Coordinate {
-        let (size_x, size_y) = (size_x as f32, size_y as f32);
-
-        let a = (size_x / 2. * (self.re + 1.)) as u32;
-        let b = (size_y / 2. * (1. - self.im)) as u32;
-
-        if size_x < size_y {
-            Coordinate::new(a, b)
-        } else {
-            Coordinate::new(b, a)
-        }
+    fn to_image(self, size: u32) -> Coordinate {
+        let size = size as f32;
+        Coordinate::new(
+            ((size - 1.) * (self.re + 1.) / 2.).round() as u32,
+            ((size - 1.) * (1. - self.im) / 2.).round() as u32,
+        )
     }
 }
 
-fn transformation_function(z: Complex32) -> Complex32 {
-    z * Complex32::i()
+fn inverse_transformation(z: Complex32) -> Complex32 {
+    z.exp()
 }
 
-fn square_image(path: &str) -> ImageBuffer<Rgba<u8>, Vec<u8>> {
-    let img = match ImageReader::open(path) {
+fn main() {
+    // let coordinate_input = Coordinate::new(0, 200);
+    // let number_input = coordinate_input.to_math(256);
+    // let number_output = transformation_function(number_input);
+    // let coordinate_output = number_output.to_image(256);
+    // dbg!(
+    //     coordinate_input,
+    //     number_input,
+    //     number_output,
+    //     coordinate_output
+    // );
+
+    let img_path = "static/big_malko.jpg";
+    let img = match ImageReader::open(img_path) {
         Ok(img_reader) => match img_reader.decode() {
             Ok(dynamic_image) => dynamic_image,
             Err(e) => panic!("{}", e),
         },
         Err(e) => panic!("{}", e),
     };
-
     let (size_x, size_y) = img.dimensions();
-    let new_size = if size_x < size_y { size_y } else { size_x };
+    let square_size = if size_x < size_y { size_y } else { size_x };
+    let mut square_img = RgbaImage::new(square_size, square_size);
 
-    let mut new_img = RgbaImage::new(new_size, new_size);
-
-    // Odd by odd OR Even by even
-    if size_x % 2 == size_y % 2 {
-        if size_x < size_y {
+    let extra_height = ((size_y as f32 - size_x as f32).abs() / 2.) as u32;
+    if size_x < size_y {
+        for (x, y, color) in img.pixels() {
             // We need to place pixels to the left and right
-            let extra_height = ((size_y - size_x) as f32 / 2_f32) as u32;
-            for (x, y, color) in img.pixels() {
-                (&mut new_img).put_pixel(x + extra_height, y, color);
-            }
-        } else {
+            (&mut square_img).put_pixel(x + extra_height, y, color);
+        }
+    } else {
+        for (x, y, color) in img.pixels() {
             // We need to place pixels on the top and bottom
-            let extra_height = ((size_x - size_y) as f32 / 2_f32) as u32;
-            for (x, y, color) in img.pixels() {
-                (&mut new_img).put_pixel(x, y + extra_height, color);
-            }
-        };
+            (&mut square_img).put_pixel(x, y + extra_height, color);
+        }
+    };
+
+    let square_img: DynamicImage = square_img.into();
+    let mut transformed_img = RgbaImage::new(square_size, square_size);
+
+    for (x, y, color) in square_img.pixels() {
+        let input_coordinate = Coordinate::new(x, y);
+        let input_number = input_coordinate.to_math(square_size);
+        let output_number = transformation_function(input_number);
+        //dbg!(input_number, output_number);
+        let ouput_coordinate = output_number.to_image(square_size);
+        if !ouput_coordinate.is_out_of_bounds(square_size) {
+            (&mut transformed_img).put_pixel(ouput_coordinate.x, ouput_coordinate.y, color);
+        }
     }
 
-    new_img
-}
-
-fn main() {
-    let img_path = "static/Me2.jpg";
-    let thing = square_image(img_path);
-    match thing.save(img_path.to_owned() + ".png") {
+    match transformed_img.save(img_path.to_owned() + ".png") {
         Ok(()) => {}
         Err(e) => panic!("{}", e),
     };
-
-    // let size = (2000, 3200);
-    // let pixel = Coordinate::new(0, 0);
-    // let number = pixel.to_math(size);
-    // let pixel2 = number.to_image(size);
-    // dbg!(pixel, number, pixel2);
-
-    // let img_path = "static/Me2.jpg";
-    // let img = match ImageReader::open(img_path) {
-    //     Ok(img_reader) => match img_reader.decode() {
-    //         Ok(dynamic_image) => dynamic_image,
-    //         Err(e) => panic!("{}", e),
-    //     },
-    //     Err(e) => panic!("{}", e),
-    // };
-
-    // let img_dimensions = img.dimensions();
-    // let mut new_img = RgbaImage::new(img_dimensions.0, img_dimensions.1);
-    // let mut unplaced_pixels_count = 0_u32;
-
-    // for (x, y, color) in img.pixels() {
-    //     let input_number = Coordinate::new(x, y).to_math(img_dimensions);
-    //     let output_number = transformation_function(input_number);
-    //     let output_coordinate = output_number.to_image(img_dimensions);
-    //     if output_coordinate.is_out_of_bounds(img_dimensions) {
-    //         unplaced_pixels_count += 1
-    //     } else {
-    //         (&mut new_img).put_pixel(output_coordinate.x, output_coordinate.y, color);
-    //     };
-    // }
-
-    // let _ = new_img.save(img_path.to_owned() + ".jpg");
-    // print!("{} pixels were unplaced", unplaced_pixels_count);
 }
