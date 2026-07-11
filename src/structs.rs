@@ -1,8 +1,13 @@
 use num_complex::Complex32;
 
 pub struct Args {
+    /// Path to the image that needs to be transformed
     pub path: String,
+    /// Format of the image the output image
+    pub format: String,
+    /// Verbose or not
     pub verbose: bool,
+    /// Show help or not
     pub help: bool,
 }
 
@@ -14,10 +19,11 @@ pub struct Coordinate {
 
 impl Coordinate {
     pub fn new(x: u32, y: u32) -> Self {
-        Coordinate { x, y }
+        Self { x, y }
     }
 
-    pub fn to_math(self, size: u32) -> Complex32 {
+    /// Convert from image coordinate to complex number
+    pub fn to_math_space(self, size: u32) -> Complex32 {
         let size = size as f32 - 1.;
         Complex32::new(
             2. / size * self.x as f32 - 1.,
@@ -25,20 +31,22 @@ impl Coordinate {
         )
     }
 
+    /// Checks whether a coordinate is out of bounds a given square image size
     pub fn is_out_of_bounds(self, size: u32) -> bool {
         size <= self.x || size <= self.y
     }
 }
 
 pub trait ToImage {
-    fn to_image(self, size: u32) -> Option<Coordinate>;
+    fn to_image_space(self, size: u32) -> Option<Coordinate>;
 }
 
 impl ToImage for Complex32 {
-    fn to_image(self, size: u32) -> Option<Coordinate> {
-        let size = size as f32 - 1.;
-
+    /// Convert from complex to image coordinate
+    fn to_image_space(self, size: u32) -> Option<Coordinate> {
+        // Checks whether the number lies in the unit square.
         if -1. <= self.re && self.re <= 1. && -1. <= self.im && self.im <= 1. {
+            let size = size as f32 - 1.;
             Some(Coordinate::new(
                 (size * (self.re + 1.) / 2.).round() as u32,
                 (size * (1. - self.im) / 2.).round() as u32,
