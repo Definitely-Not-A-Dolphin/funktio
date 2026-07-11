@@ -1,66 +1,16 @@
+use crate::structs::*;
 use image::{DynamicImage, GenericImage, GenericImageView, ImageReader, RgbaImage};
 use num_complex::Complex32;
 use sap::{Argument, Parser};
 use std::path::Path;
 
-struct Args {
-    path: String,
-    verbose: bool,
-    help: bool,
-}
-
-#[derive(Clone, Copy, Debug)]
-struct Coordinate {
-    x: u32,
-    y: u32,
-}
-
-impl Coordinate {
-    fn new(x: u32, y: u32) -> Self {
-        Coordinate { x, y }
-    }
-
-    fn to_math(self, size: u32) -> Complex32 {
-        let size = size as f32 - 1.;
-        Complex32::new(
-            2. / size * self.x as f32 - 1.,
-            1. - 2. / size * self.y as f32,
-        )
-    }
-
-    fn is_out_of_bounds(self, size: u32) -> bool {
-        size <= self.x || size <= self.y
-    }
-}
-
-trait ToImage {
-    fn to_image(self, size: u32) -> Option<Coordinate>;
-}
-
-impl ToImage for Complex32 {
-    fn to_image(self, size: u32) -> Option<Coordinate> {
-        let size = size as f32 - 1.;
-
-        if -1. <= self.re && self.re <= 1. && -1. <= self.im && self.im <= 1. {
-            Some(Coordinate::new(
-                (size * (self.re + 1.) / 2.).round() as u32,
-                (size * (1. - self.im) / 2.).round() as u32,
-            ))
-        } else {
-            None
-        }
-    }
-}
+mod structs;
 
 fn inverse_transformation(z: Complex32) -> Complex32 {
-    z.powc(Complex32::i())
+    z.tan()
 }
 
 fn main() {
-    let supported_formats = [
-        "avif", "bmp", "dds", "exr", "ff", "hdr", "ico", "jpeg", "jpg", "png", "pnm", "qoi", "tga",
-        "tiff", "webp",
-    ];
     let mut parser = Parser::from_env().unwrap();
     let mut args = Args {
         path: String::from(""),
@@ -94,14 +44,15 @@ fn main() {
             ];
             if !supported_formats.contains(&file_extension.to_str().unwrap()) {
                 print!(
-                    "Please select a file with a supported file extension\nSupported file extensions include "
+                    "Please select a file with a supported file extension\nSupported file extensions include"
                 );
                 for supported_format in supported_formats {
-                    print!("{} ", supported_format);
+                    print!(" {}", supported_format);
                 }
                 print!(".");
                 return;
             }
+            file_extension.to_str().unwrap()
         }
         None => {
             print!("Please select a file with a file extension");
@@ -114,12 +65,20 @@ fn main() {
         return;
     }
 
-    if !Path::new(args.path.as_str()).is_file() {
+    let args_path = Path::new(args.path.as_str());
+
+    if !args_path.is_file() {
         print!(
             "An invalid path was provided, make sure the input is an existing image of a supported format.\n"
         );
         return;
     }
+
+    let new_file_path = {
+        let extension_length = file_extension.len();
+        let path_without_extension = &args.path[0_usize..(args.path.len() - extension_length)];
+        path_without_extension.to_owned() + "funktio." + file_extension
+    };
 
     let img = match ImageReader::open(&args.path) {
         Ok(img_reader) => match img_reader.decode() {
@@ -176,7 +135,7 @@ fn main() {
         );
     }
 
-    match transformed_img.save(args.path) {
+    match transformed_img.save(new_file_path) {
         Ok(()) => {}
         Err(e) => panic!("{}", e),
     };
