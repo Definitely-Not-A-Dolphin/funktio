@@ -2,7 +2,7 @@
   inputs.nixpkgs.url = "github:NixOS/nixpkgs";
 
   outputs =
-    { nixpkgs, ... }@inputs:
+    { nixpkgs, ... }:
     let
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
@@ -13,6 +13,7 @@
           cargo
           m4
           rust-analyzer
+          rustfmt
           rustc
         ];
       };
