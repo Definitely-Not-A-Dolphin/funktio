@@ -9,8 +9,9 @@
     in
     {
       devShells.x86_64-linux.default = pkgs.mkShell {
-        nativeBuildInputs = with pkgs; [
+        packages = with pkgs; [
           cargo
+          clippy
           m4
           rust-analyzer
           rustfmt

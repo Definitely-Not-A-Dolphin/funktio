@@ -1,6 +1,8 @@
 use num_complex::Complex32;
 
 pub struct Args {
+  /// To show the version of funktio or not
+  pub version: bool,
   /// Path to the image that needs to be transformed
   pub path: String,
   /// Format of the image the output image

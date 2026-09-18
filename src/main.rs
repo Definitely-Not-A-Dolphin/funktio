@@ -1,18 +1,19 @@
-use crate::structs::*;
+use funktio::*;
 use image::{DynamicImage, GenericImage, GenericImageView, ImageReader, RgbaImage};
 use num_complex::Complex32;
 use sap::{Argument, Parser};
 use std::{collections::HashMap, path::Path};
-
-mod structs;
 
 fn print_no_valid_format(supported_formats: [&str; 15]) {
   print!("Please select a file with a supported file extension\nSupported file extensions include");
   for supported_format in supported_formats {
     print!(" {}", supported_format);
   }
+
   print!(".");
 }
+
+type CFun = fn(Complex32) -> Complex32;
 
 fn main() {
   let version = "0.1.0";
@@ -23,14 +24,15 @@ fn main() {
   let mut parser = Parser::from_env().unwrap();
   let mut function_defined = false;
   let mut args = Args {
+    version: false,
     path: String::new(),
     format: String::new(),
     verbose: false,
     help: false,
     inverse_function: |z: Complex32| z,
   };
-  let functions_maps = HashMap::<&'static str, fn(Complex32) -> Complex32>::from([
-    ("exp", Complex32::ln as fn(Complex32) -> Complex32),
+  let functions_maps = HashMap::<&'static str, CFun>::from([
+    ("exp", Complex32::ln as CFun),
     ("ln", Complex32::exp),
     ("sqrt", |z| z.powi(2)),
     ("square", Complex32::sqrt),
@@ -81,10 +83,16 @@ fn main() {
           }
         }
       }
-      Argument::Short('v') => args.verbose = true,
+      Argument::Short('b') => args.verbose = true,
       Argument::Short('h') => args.help = true,
+      Argument::Short('v') => args.version = true,
       _ => {}
     }
+  }
+
+  if args.version {
+    print!("{}\n", version);
+    return;
   }
 
   if args.help {
